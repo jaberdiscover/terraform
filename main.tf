@@ -108,4 +108,18 @@ resource "azurerm_monitor_metric_alert" "cpu_alert" {
 
   severity = 2  # Set the appropriate severity level (1 for critical, 2 for warning)
 }
+resource "azurerm_monitor_action_group" "vm_alert_group" {
+  name                = "vm-alert-action-group"
+  resource_group_name = var.resource_group
+  short_name          = "vmalerts"
+
+  email {
+    send_to_service_owners = true
+    custom_emails = ["abdul.majeed@windward.com"]
+  }
+
+  webhook {
+    service_uri = ""  
+  }
+}
 
