@@ -70,3 +70,21 @@ resource "azurerm_linux_virtual_machine" "vm" {
     version = var.image.version
   }
 }
+resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
+  name               = "vm-diagnostics-settings"
+  target_resource_id = azurerm_linux_virtual_machine.vm.id
+  logs {
+    category = "AuditLogs"
+    enabled  = true
+    retention_policy {
+      days     = 30
+      enabled  = false
+    }
+  }
+  metrics {
+    category = "AllMetrics"
+    enabled  = true
+  }
+  workspace_id = azurerm_log_analytics_workspace.central_workspace.id
+}
+
