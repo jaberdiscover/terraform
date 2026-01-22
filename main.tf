@@ -122,4 +122,28 @@ resource "azurerm_monitor_action_group" "vm_alert_group" {
     service_uri = ""  
   }
 }
+resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
+  name                = "vm-cpu-alert-logic-app"
+  location            = var.location
+  resource_group_name = var.resource_group
+  definition          = jsonencode({
+    "definition" = {
+      "actions" = {
+        "CreateIncident" = {
+          "inputs" = {
+            "serviceNow" = {
+              "incident" = {
+                "short_description" = "VM CPU High Alert",
+                "description"       = "CPU utilization exceeded 80%",
+                "priority"          = "2",
+                "assignment_group"  = "VM-Team"
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  parameters = {}
+}
 
