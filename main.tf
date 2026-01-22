@@ -70,27 +70,32 @@ resource "azurerm_linux_virtual_machine" "vm" {
     version = var.image.version
   }
 }
+# Create Log Analytics Workspace for centralized monitoring
+resource "azurerm_log_analytics_workspace" "central_workspace" {
+  name                = "central-monitoring-logs"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  sku                  = "PerGB2018"
+}
 resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
   name               = "vm-diagnostics-settings"
   target_resource_id = azurerm_linux_virtual_machine.vm.id
+  workspace_id       = azurerm_log_analytics_workspace.central_workspace.id
+
   logs {
     category = "AuditLogs"
     enabled  = true
-    retention_policy {
-      days     = 30
-      enabled  = false
-    }
   }
+
   metrics {
     category = "AllMetrics"
     enabled  = true
   }
-  workspace_id = azurerm_log_analytics_workspace.central_workspace.id
 }
 resource "azurerm_monitor_metric_alert" "cpu_alert" {
   name                = "vm-cpu-high-alert"
-  resource_group_name = var.resource_group
-  scopes              = ["/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group}/providers/Microsoft.Compute/virtualMachines"]
+  resource_group_name = var.resource_group_name
+  scopes              = ["/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Compute/virtualMachines"]
   description         = "Alert when CPU utilization exceeds 80% for 10 minutes"
 
   criteria {
@@ -106,26 +111,29 @@ resource "azurerm_monitor_metric_alert" "cpu_alert" {
     action_group_id = azurerm_monitor_action_group.vm_alert_group.id
   }
 
-  severity = 2  # Set the appropriate severity level (1 for critical, 2 for warning)
+  severity = 2  # Set severity level (2 for warning)
 }
 resource "azurerm_monitor_action_group" "vm_alert_group" {
   name                = "vm-alert-action-group"
-  resource_group_name = var.resource_group
+  resource_group_name = var.resource_group_name
   short_name          = "vmalerts"
 
-  email {
-    send_to_service_owners = true
-    custom_emails = ["abdul.majeed@windward.com"]
+  email_receiver {
+    name               = "EmailReceiver"
+    custom_emails      = var.custom_emails
   }
 
-  webhook {
-    service_uri = ""  
+  webhook_receiver {
+    name        = "webhookReceiver"
+    service_uri = var.webhook_uri
   }
 }
+# Logic App Workflow (integrated with ServiceNow or other webhook services)
 resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
   name                = "vm-cpu-alert-logic-app"
   location            = var.location
-  resource_group_name = var.resource_group
+  resource_group_name = var.resource_group_name
+
   definition          = jsonencode({
     "definition" = {
       "actions" = {
@@ -144,6 +152,6 @@ resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
       }
     }
   })
+
   parameters = {}
 }
-
