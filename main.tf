@@ -87,4 +87,25 @@ resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
   }
   workspace_id = azurerm_log_analytics_workspace.central_workspace.id
 }
+resource "azurerm_monitor_metric_alert" "cpu_alert" {
+  name                = "vm-cpu-high-alert"
+  resource_group_name = var.resource_group
+  scopes              = ["/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group}/providers/Microsoft.Compute/virtualMachines"]
+  description         = "Alert when CPU utilization exceeds 80% for 10 minutes"
+
+  criteria {
+    metric_name      = "Percentage CPU"
+    aggregation      = "Average"
+    operator         = "GreaterThan"
+    threshold        = 80
+    time_aggregation = "Average"
+    metric_namespace = "Microsoft.Compute/virtualMachines"
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.vm_alert_group.id
+  }
+
+  severity = 2  # Set the appropriate severity level (1 for critical, 2 for warning)
+}
 
