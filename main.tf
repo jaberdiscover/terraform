@@ -74,36 +74,35 @@ resource "azurerm_linux_virtual_machine" "vm" {
 resource "azurerm_log_analytics_workspace" "central_workspace" {
   name                = "central-monitoring-logs"
   location            = var.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.rg_name
   sku                  = "PerGB2018"
+  retention_in_days = 30
 }
 resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
   name               = "vm-diagnostics-settings"
   target_resource_id = azurerm_linux_virtual_machine.vm.id
-  workspace_id       = azurerm_log_analytics_workspace.central_workspace.id
+  log_analytics_workspace_id      = azurerm_log_analytics_workspace.central_workspace.id
 
-  logs {
-    category = "AuditLogs"
-    enabled  = true
-  }
+  # enabled_log {
+  #   category = "AuditEvent"
 
-  metrics {
+  # }
+  metric {
     category = "AllMetrics"
-    enabled  = true
-  }
+    enabled = true
+    }
 }
 resource "azurerm_monitor_metric_alert" "cpu_alert" {
   name                = "vm-cpu-high-alert"
-  resource_group_name = var.resource_group_name
-  scopes              = ["/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Compute/virtualMachines"]
+  resource_group_name = var.rg_name
+  scopes              =["/subscriptions/d0b6484c-394e-4e9b-a4d7-08beb829a885/resourceGroups/rg-test-vm/providers/Microsoft.Compute/virtualMachines/vm-test-tf"]
   description         = "Alert when CPU utilization exceeds 80% for 10 minutes"
 
   criteria {
     metric_name      = "Percentage CPU"
     aggregation      = "Average"
     operator         = "GreaterThan"
-    threshold        = 80
-    time_aggregation = "Average"
+    threshold        = 5
     metric_namespace = "Microsoft.Compute/virtualMachines"
   }
 
@@ -115,12 +114,12 @@ resource "azurerm_monitor_metric_alert" "cpu_alert" {
 }
 resource "azurerm_monitor_action_group" "vm_alert_group" {
   name                = "vm-alert-action-group"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.rg_name
   short_name          = "vmalerts"
 
   email_receiver {
     name               = "EmailReceiver"
-    custom_emails      = var.custom_emails
+    email_address =       var.custom_emails
   }
 
   webhook_receiver {
@@ -132,9 +131,9 @@ resource "azurerm_monitor_action_group" "vm_alert_group" {
 resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
   name                = "vm-cpu-alert-logic-app"
   location            = var.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.rg_name
 
-  definition          = jsonencode({
+  workflow_schema       = jsonencode({
     "definition" = {
       "actions" = {
         "CreateIncident" = {
@@ -147,7 +146,11 @@ resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
                 "assignment_group"  = "VM-Team"
               }
             }
-          }
+          },
+          "runAfter" = {},
+          "metadeta" = {},
+          "type" = "Http",
+          "version" ="2025-05-01-preview"
         }
       }
     }
