@@ -49,3 +49,17 @@ variable "image" {
     version = string
   })
 }
+
+variable "subscription_id" {
+  description = "The subscription ID"
+  type = string
+}
+
+variable "custom_emails" {
+  description = " List of email addresses for alerts"
+}
+
+variable "webhook_uri"{
+  description = "Webhook URI for the alert "
+  type = string
+}
