@@ -63,3 +63,13 @@ variable "webhook_uri"{
   description = "Webhook URI for the alert "
   type = string
 }
+variable "sql_admin_username" {
+  type        = string
+  description = "SQL Server administrator username"
+}
+
+variable "sql_admin_password" {
+  type        = string
+  description = "SQL Server administrator password"
+  sensitive   = true
+}
