@@ -23,11 +23,33 @@ variable "created_by" {
 }
 
 variable "subscription_id" {
-  description = "Azure Subscription ID"
+  description = "Azure Subscription ID where VM will be created"
   type        = string
 }
 
-# Network Configuration
+# Event Hub Configuration (for Function App integration)
+# These are in a DIFFERENT subscription
+variable "eventhub_subscription_id" {
+  description = "Subscription ID where Event Hub and Function App are located (can be different from VM subscription)"
+  type        = string
+}
+
+variable "eventhub_resource_group" {
+  description = "Resource Group where Event Hub is located (in the other subscription)"
+  type        = string
+}
+
+variable "eventhub_namespace_name" {
+  description = "Name of the existing Event Hub Namespace (in the other subscription)"
+  type        = string
+  # Example: "your-eventhub-namespace"
+}
+
+variable "eventhub_name" {
+  description = "Name of the existing Event Hub (in the other subscription)"
+  type        = string
+  # Example: "your-eventhub-name"
+}
 variable "vnet_name" {
   description = "Virtual Network Name"
   type        = string
@@ -96,18 +118,6 @@ variable "custom_emails" {
   default     = ""
 }
 
-# Event Hub Configuration (for Function App integration)
-variable "eventhub_namespace_name" {
-  description = "Name of the existing Event Hub Namespace"
-  type        = string
-  # Example: "your-eventhub-namespace"
-}
-
-variable "eventhub_name" {
-  description = "Name of the existing Event Hub"
-  type        = string
-  # Example: "your-eventhub-name"
-}
 
 variable "enable_memory_alert" {
   description = "Enable memory alert monitoring"
@@ -121,3 +131,4 @@ variable "webhook_uri" {
   type        = string
   default     = ""
 }
+
