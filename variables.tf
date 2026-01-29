@@ -1,75 +1,123 @@
-variable "location" {
-  type = string
-  default = "Central US"
-}
-
+# Basic Configuration
 variable "rg_name" {
-  type = string
+  description = "Resource Group Name"
+  type        = string
 }
 
-variable "vnet_name" {
-  type = string
+variable "location" {
+  description = "Azure Region"
+  type        = string
+  default     = "East US"
 }
 
-variable "vnet_cidr" {
-  type = list(string)
+variable "environment" {
+  description = "Environment tag (Test, Dev, Prod)"
+  type        = string
+  default     = "Test"
 }
 
-variable "subnet_name" {
-  type = string
-}
-
-variable "subnet_cidr" {
-  type = list(string)
-}
-
-variable "vm_name" {
-  type = string
-}
-
-variable "vm_size" {
-  type = string
-  default = "Standard_B2s"
-}
-
-variable "admin_username" {
-  type = string
-  default = "azureuser"
-}
-
-variable "ssh_public_key_path" {
-  type = string
-}
-
-variable "image" {
-  type = object({
-    publisher = string
-    offer = string
-    sku = string
-    version = string
-  })
+variable "created_by" {
+  description = "Your name or identifier to track your alerts"
+  type        = string
+  # Example: "JohnDoe" or "YourName"
 }
 
 variable "subscription_id" {
-  description = "The subscription ID"
-  type = string
+  description = "Azure Subscription ID"
+  type        = string
 }
 
+# Network Configuration
+variable "vnet_name" {
+  description = "Virtual Network Name"
+  type        = string
+}
+
+variable "vnet_cidr" {
+  description = "VNET Address Space"
+  type        = list(string)
+  default     = ["10.0.0.0/16"]
+}
+
+variable "subnet_name" {
+  description = "Subnet Name"
+  type        = string
+}
+
+variable "subnet_cidr" {
+  description = "Subnet Address Prefix"
+  type        = list(string)
+  default     = ["10.0.1.0/24"]
+}
+
+# VM Configuration
+variable "vm_name" {
+  description = "Virtual Machine Name"
+  type        = string
+}
+
+variable "vm_size" {
+  description = "VM Size"
+  type        = string
+  default     = "Standard_B2s"
+}
+
+variable "admin_username" {
+  description = "Admin Username"
+  type        = string
+  default     = "azureuser"
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH Public Key"
+  type        = string
+}
+
+variable "image" {
+  description = "VM Image Details"
+  type = object({
+    publisher = string
+    offer     = string
+    sku       = string
+    version   = string
+  })
+  default = {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+}
+
+# Alert Configuration
 variable "custom_emails" {
-  description = " List of email addresses for alerts"
+  description = "Email address for alert notifications (optional)"
+  type        = string
+  default     = ""
 }
 
-variable "webhook_uri"{
-  description = "Webhook URI for the alert "
-  type = string
-}
-variable "sql_admin_username" {
+# Event Hub Configuration (for Function App integration)
+variable "eventhub_namespace_name" {
+  description = "Name of the existing Event Hub Namespace"
   type        = string
-  description = "SQL Server administrator username"
+  # Example: "your-eventhub-namespace"
 }
 
-variable "sql_admin_password" {
+variable "eventhub_name" {
+  description = "Name of the existing Event Hub"
   type        = string
-  description = "SQL Server administrator password"
-  sensitive   = true
+  # Example: "your-eventhub-name"
+}
+
+variable "enable_memory_alert" {
+  description = "Enable memory alert monitoring"
+  type        = bool
+  default     = false
+}
+
+# Optional: Webhook (if you want to keep it as backup)
+variable "webhook_uri" {
+  description = "Webhook URI (optional, can be left empty)"
+  type        = string
+  default     = ""
 }
