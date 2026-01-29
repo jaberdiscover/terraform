@@ -69,261 +69,147 @@ resource "azurerm_linux_virtual_machine" "vm" {
     sku = var.image.sku
     version = var.image.version
   }
+
+  tags = {
+    CreatedBy = var.created_by
+    Environment = var.environment
+    MonitoredBy = "FunctionApp"
+  }
 }
 
-resource "azurerm_sql_server" "sqlserver" {
-  name                         = var.sqlserver_name
-  resource_group_name           = azurerm_resource_group.rg.name
-  location                     = var.location
-  version                      = "12.0"
-  administrator_login          = var.sql_admin_username
-  administrator_login_password = var.sql_admin_password
-}
-
-# SQL Database
-resource "azurerm_sql_database" "sqldb" {
-  name                     = var.sqldb_name
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = var.location
-  server_name              = azurerm_sql_server.example.name
-  sku_name                 = "S1"
-  collation                = "SQL_Latin1_General_CP1_CI_AS"
-  max_size_bytes           = 1073741824  # 1 GB
-}
 # Create Log Analytics Workspace for centralized monitoring
 resource "azurerm_log_analytics_workspace" "central_workspace" {
   name                = "central-monitoring-logs"
   location            = var.location
   resource_group_name = var.rg_name
-  sku                  = "PerGB2018"
-  retention_in_days = 30
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
 }
+
 resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
-  name               = "vm-diagnostics-settings"
-  target_resource_id = azurerm_linux_virtual_machine.vm.id
-  log_analytics_workspace_id      = azurerm_log_analytics_workspace.central_workspace.id
+  name                       = "vm-diagnostics-settings"
+  target_resource_id         = azurerm_linux_virtual_machine.vm.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.central_workspace.id
 
-  # enabled_log {
-  #   category = "AuditEvent"
-
-  # }
   metric {
     category = "AllMetrics"
-    enabled = true
-    }
+    enabled  = true
+  }
 }
-resource "azurerm_monitor_metric_alert" "cpu_alert" {
-  name                = "vm-cpu-high-alert"
+
+# Action Group that sends alerts to Event Hub (which triggers Function App)
+resource "azurerm_monitor_action_group" "vm_alert_group" {
+  name                = "vm-alert-action-group-${var.created_by}"
   resource_group_name = var.rg_name
-  scopes              =["/subscriptions/d0b6484c-394e-4e9b-a4d7-08beb829a885/resourceGroups/rg-test-vm/providers/Microsoft.Compute/virtualMachines/vm-test-tf"]
-  description         = "Alert when CPU utilization exceeds 80% for 10 minutes"
+  short_name          = "vm-${substr(var.created_by, 0, 8)}"
+
+  # Optional: Keep email notification if you want
+  email_receiver {
+    name          = "EmailReceiver"
+    email_address = var.custom_emails
+  }
+
+  # Event Hub receiver - connects to your existing Event Hub
+  event_hub_receiver {
+    name                    = "EventHubReceiver"
+    event_hub_namespace     = var.eventhub_namespace_name
+    event_hub_name          = var.eventhub_name
+    subscription_id         = var.subscription_id
+    use_common_alert_schema = true  # Important: Use common alert schema for consistency
+  }
+
+  tags = {
+    CreatedBy   = var.created_by
+    Purpose     = "FunctionAppIntegration"
+    Environment = var.environment
+  }
+}
+
+# CPU Alert Rule - sends to Action Group (which sends to Event Hub → Function App → ServiceNow)
+resource "azurerm_monitor_metric_alert" "cpu_alert" {
+  name                = "vm-cpu-alert-${var.created_by}-${var.vm_name}"
+  resource_group_name = var.rg_name
+  scopes              = [azurerm_linux_virtual_machine.vm.id]
+  description         = "TEST ALERT - Created by ${var.created_by} - Alert when CPU exceeds 5% (easy to trigger for testing)"
+  severity            = 3  # Sev3 for testing
 
   criteria {
     metric_name      = "Percentage CPU"
     aggregation      = "Average"
     operator         = "GreaterThan"
-    threshold        = 5
+    threshold        = 5  # Low threshold for easy testing
     metric_namespace = "Microsoft.Compute/virtualMachines"
   }
+
+  window_size        = "PT5M"  # 5 minute window
+  frequency          = "PT1M"  # Check every 1 minute
 
   action {
     action_group_id = azurerm_monitor_action_group.vm_alert_group.id
   }
 
-  severity = 2  # Set severity level (2 for warning)
+  tags = {
+    CreatedBy   = var.created_by
+    TestAlert   = "true"
+    Environment = var.environment
+    MonitoredBy = "FunctionApp"
+  }
 }
-resource "azurerm_monitor_action_group" "vm_alert_group" {
-  name                = "vm-alert-action-group"
+
+# Optional: Memory Alert (if you want to monitor memory too)
+resource "azurerm_monitor_metric_alert" "memory_alert" {
+  name                = "vm-memory-alert-${var.created_by}-${var.vm_name}"
   resource_group_name = var.rg_name
-  short_name          = "vmalerts"
-
-  email_receiver {
-    name               = "EmailReceiver"
-    email_address =       var.custom_emails
-  }
-
-  webhook_receiver {
-    name        = "webhookReceiver"
-    service_uri = var.webhook_uri
-  }
-}
-# Logic App Workflow (integrated with ServiceNow or other webhook services)
-resource "azurerm_logic_app_workflow" "vm_cpu_alert_logic_app" {
-  name                = "vm-cpu-alert-logic-app"
-  location            = var.location
-  resource_group_name = var.rg_name
-
-  workflow_schema       = jsonencode({
-    "definition" = {
-      "actions" = {
-        "CreateIncident" = {
-          "inputs" = {
-            "serviceNow" = {
-              "incident" = {
-                "short_description" = "VM CPU High Alert",
-                "description"       = "CPU utilization exceeded 80%",
-                "priority"          = "2",
-                "assignment_group"  = "VM-Team"
-              }
-            }
-          },
-          "runAfter" = {},
-          "metadeta" = {},
-          "type" = "Http",
-          "version" ="2025-05-01-preview"
-        }
-      }
-    }
-  })
-
-  parameters = {}
-}
-# Logic App (for ServiceNow Integration)
-resource "azurerm_logic_app_workflow" "sql_cpu_alert_logic_app" {
-  name                = "sql-cpu-alert-logic-app"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-
-  definition = jsonencode({
-    "definition" = {
-      "actions" = {
-        "CreateIncident" = {
-          "inputs" = {
-            "serviceNow" = {
-              "incident" = {
-                "short_description" = "SQL DB CPU High Alert",
-                "description"      = "CPU utilization exceeded 80%",
-                "priority"          = "2",
-                "assignment_group"  = "VM-Team"
-              }
-            }
-          }
-        }
-      },
-      "runAfter" = {},
-      "metadata" = {},
-      "type"     = "Http",
-      "version"  = "2025-05-01-preview"
-    }
-  })
-}
-
-# Action Group (Connects Alert to Logic App)
-resource "azurerm_monitor_action_group" "sql_db_alert" {
-  name                = "sql-db-alert-action-group"
-  resource_group_name = var.resource_group_name
-  short_name          = "sqlalerts"
-
-  logic_app_receiver {
-    name            = "send-to-servicenow"
-    resource_id     = azurerm_logic_app_workflow.example.id
-    use_common_alert_schema = true
-  }
-}
-
-# Metric Alert for CPU Percentage
-resource "azurerm_monitor_metric_alert" "cpu_alert" {
-  name                = "sql-db-cpu-alert"
-  resource_group_name = var.resource_group_name
-  scopes              = [azurerm_sql_database.example.id]
-  description         = "Alert when CPU utilization exceeds 80%"
+  scopes              = [azurerm_linux_virtual_machine.vm.id]
+  description         = "TEST ALERT - Created by ${var.created_by} - Alert when Available Memory is low"
+  severity            = 3
+  enabled             = var.enable_memory_alert  # Can be toggled
 
   criteria {
-    metric_namespace = "Microsoft.Sql/servers/databases"
-    metric_name      = "cpu_percent"
+    metric_name      = "Available Memory Bytes"
     aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = 80
-
-    dimension {
-      name     = "DatabaseName"
-      operator = "Include"
-      values   = [azurerm_sql_database.example.name]
-    }
+    operator         = "LessThan"
+    threshold        = 1073741824  # 1 GB in bytes
+    metric_namespace = "Microsoft.Compute/virtualMachines"
   }
+
+  window_size = "PT5M"
+  frequency   = "PT1M"
 
   action {
-    action_group_id = azurerm_monitor_action_group.example.id
+    action_group_id = azurerm_monitor_action_group.vm_alert_group.id
   }
 
-  severity = 2  # Warning
-  enabled  = true
+  tags = {
+    CreatedBy   = var.created_by
+    TestAlert   = "true"
+    Environment = var.environment
+    MonitoredBy = "FunctionApp"
+  }
 }
 
-# Metric Alert for DTU Consumption
-resource "azurerm_monitor_metric_alert" "dtu_alert" {
-  name                = "sql-db-dtu-alert"
-  resource_group_name = var.resource_group_name
-  scopes              = [azurerm_sql_database.example.id]
-  description         = "Alert when DTU consumption exceeds 80%"
-
-  criteria {
-    metric_namespace = "Microsoft.Sql/servers/databases"
-    metric_name      = "dtu_consumption_percent"
-    aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = 80
-
-    dimension {
-      name     = "DatabaseName"
-      operator = "Include"
-      values   = [azurerm_sql_database.example.name]
-    }
-  }
-
-  action {
-    action_group_id = azurerm_monitor_action_group.example.id
-  }
-
-  severity = 2  # Warning
-  enabled  = true
+# Output important information
+output "vm_id" {
+  value       = azurerm_linux_virtual_machine.vm.id
+  description = "The ID of the created VM"
 }
 
-# Metric Alert for Storage Used Percentage
-resource "azurerm_monitor_metric_alert" "storage_alert" {
-  name                = "sql-db-storage-alert"
-  resource_group_name = var.resource_group_name
-  scopes              = [azurerm_sql_database.example.id]
-  description         = "Alert when storage usage exceeds 80%"
-
-  criteria {
-    metric_namespace = "Microsoft.Sql/servers/databases"
-    metric_name      = "storage_percent"
-    aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = 80
-
-    dimension {
-      name     = "DatabaseName"
-      operator = "Include"
-      values   = [azurerm_sql_database.example.name]
-    }
-  }
-
-  action {
-    action_group_id = azurerm_monitor_action_group.example.id
-  }
-
-  severity = 2  # Warning
-  enabled  = true
+output "vm_name" {
+  value       = azurerm_linux_virtual_machine.vm.name
+  description = "The name of the created VM"
 }
 
-# Diagnostic Settings for SQL Database (Optional)
-resource "azurerm_monitor_diagnostic_setting" "sql_db_diagnostics" {
-  name                      = "sql-db-diagnostics"
-  target_resource_id        = azurerm_sql_database..id
-  storage_account_id        = azurerm_storage_account..id  # Using the same storage account for diagnostics
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.example.id  # Optional: If you want to send logs to Log Analytics
+output "action_group_id" {
+  value       = azurerm_monitor_action_group.vm_alert_group.id
+  description = "The ID of the Action Group connected to Event Hub"
+}
 
-  enabled_log {
-    category = "SQLSecurityAuditEvents"  # Security-related audit logs
-  }
+output "cpu_alert_id" {
+  value       = azurerm_monitor_metric_alert.cpu_alert.id
+  description = "The ID of the CPU alert rule"
+}
 
-  enabled_log {
-    category = "SQLInsights"  # Performance metrics and SQL Query execution logs
-  }
-
-  enabled_metric {
-    category = "AllMetrics"  # Resource utilization metrics (CPU, Memory, DTU)
-  }
+output "alert_identifier" {
+  value       = "vm-cpu-alert-${var.created_by}-${var.vm_name}"
+  description = "Use this to search for your alerts in ServiceNow"
 }
