@@ -98,6 +98,7 @@ resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
 }
 
 # Action Group that sends alerts to Event Hub (which triggers Function App)
+# Event Hub is in a DIFFERENT subscription/account
 resource "azurerm_monitor_action_group" "vm_alert_group" {
   name                = "vm-alert-action-group-${var.created_by}"
   resource_group_name = var.rg_name
@@ -109,12 +110,13 @@ resource "azurerm_monitor_action_group" "vm_alert_group" {
     email_address = var.custom_emails
   }
 
-  # Event Hub receiver - connects to your existing Event Hub
+  # Event Hub receiver - connects to Event Hub in DIFFERENT subscription
+  # Format: /subscriptions/{subscription-id}/resourceGroups/{rg}/providers/Microsoft.EventHub/namespaces/{namespace}/eventhubs/{eventhub}
   event_hub_receiver {
-    name                    = "EventHubReceiver"
+    name                    = "EventHubReceiver-CrossSub"
     event_hub_namespace     = var.eventhub_namespace_name
     event_hub_name          = var.eventhub_name
-    subscription_id         = var.subscription_id
+    subscription_id         = var.eventhub_subscription_id  # Different subscription!
     use_common_alert_schema = true  # Important: Use common alert schema for consistency
   }
 
@@ -122,6 +124,7 @@ resource "azurerm_monitor_action_group" "vm_alert_group" {
     CreatedBy   = var.created_by
     Purpose     = "FunctionAppIntegration"
     Environment = var.environment
+    CrossSub    = "true"
   }
 }
 
@@ -213,3 +216,4 @@ output "alert_identifier" {
   value       = "vm-cpu-alert-${var.created_by}-${var.vm_name}"
   description = "Use this to search for your alerts in ServiceNow"
 }
+
