@@ -6,7 +6,15 @@ rg_name         = "rg-test-vm"
 location        = "East US"
 environment     = "Test"
 created_by      = "YourName"  # CHANGE THIS to your name/identifier
-subscription_id = "d0b6484c-394e-4e9b-a4d7-08beb829a885"  # CHANGE THIS
+
+# Subscription Configuration
+subscription_id = "d0b6484c-394e-4e9b-a4d7-08beb829a885"  # CHANGE THIS - VM subscription
+
+# Event Hub Configuration - IMPORTANT: Event Hub is in DIFFERENT subscription!
+eventhub_subscription_id = "5d835219-e9d4-41c4-925c-4dc86452b32b"  # CHANGE THIS - Event Hub subscription
+eventhub_resource_group  = "cze-i-n-retdb00-d-rgp-04"              # CHANGE THIS - Event Hub resource group
+eventhub_namespace_name  = "your-eventhub-namespace"               # CHANGE THIS - Get from other account
+eventhub_name            = "your-eventhub-name"                    # CHANGE THIS - Get from other account
 
 # Network Configuration
 vnet_name   = "vnet-test"
@@ -31,10 +39,7 @@ image = {
 # Alert Configuration
 custom_emails = "your-email@example.com"  # CHANGE THIS (optional)
 
-# Event Hub Configuration - IMPORTANT: These must match your existing Event Hub
-eventhub_namespace_name = "your-eventhub-namespace"  # CHANGE THIS - Get from Azure Portal
-eventhub_name           = "your-eventhub-name"        # CHANGE THIS - Get from Azure Portal
-
 # Optional Configuration
 enable_memory_alert = false  # Set to true if you want memory monitoring too
 webhook_uri         = ""     # Leave empty if not using webhook
+
