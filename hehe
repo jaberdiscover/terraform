@@ -1,7 +1,7 @@
 /subscriptions/d0b6484c-394e-4e9b-a4d7-08beb829a885/resourceGroups/rg-test-vm/providers/Microsoft.Compute/virtualMachines/vm-test-tf
 
 curl -X POST \
-  'https://yourinstance.service-now.com/api/now/table/incident' \
+  'https://constellationdev.service-now.com/api/now/table/incident' \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
   -u 'azure_integration:3lYj.Phe[D+Uds=1@G@R2S' \
