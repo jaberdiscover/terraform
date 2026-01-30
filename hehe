@@ -4,7 +4,7 @@ curl -X POST \
   'https://yourinstance.service-now.com/api/now/table/incident' \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
-  -u 'azure_integration:your-password' \
+  -u 'azure_integration:3lYj.Phe[D+Uds=1@G@R2S' \
   -d '{
     "short_description": "Test incident from Azure",
     "description": "This is a test incident",
