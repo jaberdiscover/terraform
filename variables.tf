@@ -1,6 +1,4 @@
-# ===============================
 # Basic Configuration
-# ===============================
 variable "rg_name" {
   description = "Resource Group Name"
   type        = string
@@ -21,25 +19,37 @@ variable "environment" {
 variable "created_by" {
   description = "Your name or identifier to track your alerts"
   type        = string
+  # Example: "JohnDoe" or "YourName"
 }
 
-# ===============================
-# Event Hub Configuration
-# SAME SUBSCRIPTION (NO CROSS-SUB)
-# ===============================
-variable "eventhub_namespace_name" {
-  description = "Name of the existing Event Hub Namespace (same subscription)"
+variable "subscription_id" {
+  description = "Azure Subscription ID where VM will be created"
   type        = string
+}
+
+# Event Hub Configuration (for Function App integration)
+# These are in a DIFFERENT subscription
+# variable "eventhub_subscription_id" {
+#   description = "Subscription ID where Event Hub and Function App are located (can be different from VM subscription)"
+#   type        = string
+# }
+
+variable "eventhub_resource_group" {
+  description = "Resource Group where Event Hub is located (in the other subscription)"
+  type        = string
+}
+
+variable "eventhub_namespace_name" {
+  description = "Name of the existing Event Hub Namespace (in the other subscription)"
+  type        = string
+  # Example: "your-eventhub-namespace"
 }
 
 variable "eventhub_name" {
-  description = "Name of the existing Event Hub (same subscription)"
+  description = "Name of the existing Event Hub (in the other subscription)"
   type        = string
+  # Example: "your-eventhub-name"
 }
-
-# ===============================
-# Network Configuration
-# ===============================
 variable "vnet_name" {
   description = "Virtual Network Name"
   type        = string
@@ -62,9 +72,7 @@ variable "subnet_cidr" {
   default     = ["10.0.1.0/24"]
 }
 
-# ===============================
 # VM Configuration
-# ===============================
 variable "vm_name" {
   description = "Virtual Machine Name"
   type        = string
@@ -103,11 +111,23 @@ variable "image" {
   }
 }
 
-# ===============================
 # Alert Configuration
-# ===============================
+variable "custom_emails" {
+  description = "Email address for alert notifications (optional)"
+  type        = string
+  default     = ""
+}
+
+
 variable "enable_memory_alert" {
   description = "Enable memory alert monitoring"
   type        = bool
   default     = false
+}
+
+# Optional: Webhook (if you want to keep it as backup)
+variable "webhook_uri" {
+  description = "Webhook URI (optional, can be left empty)"
+  type        = string
+  default     = ""
 }
